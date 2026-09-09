@@ -1,374 +1,350 @@
-# Homepage Redesign — Product & Delivery Plan
+# Homepage Revamp — Technical Plan of Action
 
-**Goal:** Ship a **completely new homepage** (header, footer, and everything in between) **without changing** how users buy insurance today.
+**Goal:** Replace the homepage (header, footer, and page content) on the **customer website** with the new design. All insurance buy flows stay exactly as they are today.
 
-**Repos involved:**
-
-| Repo | Role |
-|------|------|
-| `C:\Ombrela\customer` | **Production site** — we change homepage + header + footer here |
-| `Downloads/Ombrella Homepage Redesign` | **Design reference** — copy UI/UX from here; not a separate production deploy |
+**Customer repo (where we code):** `C:\Ombrela\customer`  
+**Design reference (where we copy layout/copy from):** `Ombrella Homepage Redesign` folder
 
 ---
 
-## 1. What we are delivering
+## 1. What changes vs what stays the same
 
-### ✅ In scope (homepage experience only)
+### Changes (customer repo only)
 
-- New **header** (logo, nav, mobile menu, phone, Get Quote)
-- New **homepage body** (hero, categories, partners, Dr. Ombrella, **Risk Score CTA**, testimonials, FAQ, etc.)
-- New **footer** (links, contact, social, NAICOM note)
-- **Free Risk Score** — homepage teaser + full page at `/risk-score` (8 tap questions → score + gap report)
-- All category buttons route to **existing prequote URLs** (no new buy flow)
-- **Chatbot widget stays** (bottom-right AI assistant — unchanged)
-- **Dr. Ombrella** on homepage (prompt box → suggested plans → link to existing prequote)
+| Area | What we do |
+|------|------------|
+| **Header** | New look + nav; keep login/logout and existing behaviour |
+| **Footer** | New look + links; same destination URLs as today |
+| **Homepage (`/`)** | New sections (see list below) |
+| **New page `/risk-score`** | Free risk quiz (does not exist on customer site today) |
+| **Styles** | New SCSS for homepage/header/footer (responsive) |
 
-### ❌ Out of scope (must not break)
+### Does NOT change
 
-- Health / motor / life / gadget / travel / education / savings **buy journeys**
-- Payment (Paystack / Payaza)
-- Login, OTP, sign-up
-- Post-purchase, claims processing, policy certificates
-- Insurance Service APIs used by buy flows (except new optional homepage endpoints — see Section 5)
-
----
-
-## 2. How we avoid impacting other teams / flows
-
-| Risk | How we prevent it |
-|------|-------------------|
-| Breaking buy flows | We **do not edit** `pages/v2/**`, `pages/gadget/**`, `services/**` buy logic |
-| Losing chatbot | Keep `ChatWidget` in `website-layout.js` — only adjust CSS/z-index if needed |
-| Wrong product links | Use **same URLs** as today’s footer/menu (see Section 4) |
-| Login/session breaks | Header keeps same cookie/token logic as current `header.js` |
-| SEO / analytics drop | Keep same homepage URL `/`, preserve meta tags & GA/Mixpanel hooks |
-
-**Technical rule:** All changes live under homepage + layout shell. Buy flows stay frozen.
-
-```
-┌─────────────────────────────────────────┐
-│  CHANGED: Header │ New homepage │ Footer │
-├─────────────────────────────────────────┤
-│  UNCHANGED: /v2/* prequotes → pay → cert │
-│  UNCHANGED: Chatbot widget               │
-└─────────────────────────────────────────┘
-```
+| Area | Why |
+|------|-----|
+| `pages/v2/**` | Health, motor, life, education, savings prequotes → payment |
+| `pages/gadget/**`, `pages/travel-insurance/**` | Other buy flows |
+| `services/**` | API calls for insurance, payment, auth |
+| Payment (Paystack / Payaza) | Unchanged |
+| Login / sign-up / OTP | Unchanged |
+| Post-purchase, renewal, claims pages | Unchanged |
+| **Chatbot widget** | Stays in layout — do not remove |
 
 ---
 
-## 3. User journey (after launch)
+## 2. Important: this is not “copy-paste”
 
-1. User lands on **new homepage**.
-2. Clicks **Health Insurance** → goes to **`/v2/health-insurance/prequotes`** (same as today).
-3. Rest of journey = **exactly today’s flow** (questions → plans → OTP → pay).
-4. Optional: user taps **Check my risk score** → **`/risk-score`** → answers 8 questions → gets score (0–100) + “what you’re missing” → CTAs link to **existing prequotes** (health, life, motor, etc.).
-5. Optional: user types in **Dr. Ombrella** → sees **real curated plans from our DB** → clicks through to same prequote/plan pages.
-6. User can still open **corner chatbot** for general questions (unchanged).
+The redesign folder and the customer repo use **different tech**:
+
+| | Redesign (reference) | Customer (production) |
+|--|---------------------|----------------------|
+| Framework | TanStack Start | Next.js 12 (Pages router) |
+| Styling | Tailwind CSS | Bootstrap + SCSS |
+| UI kit | shadcn / Radix | MUI + Bootstrap |
+| React | 19 | 17 |
+
+**What we actually do:**
+
+1. **Copy:** layout structure, text, images, section order, behaviour ideas.
+2. **Rewrite:** components as `.js` files under `component/home/v2/` using customer patterns.
+3. **Rewrite:** styles in SCSS (mobile-first breakpoints) — not Tailwind classes.
+4. **Wire:** every button to **existing** `Link href="..."` URLs from current footer/menu.
+
+So it is **fast if we treat redesign as a spec**, but it is **port/adapt**, not drag-and-drop files.
 
 ---
 
-## 4. Route mapping (new homepage → existing flows)
+## 3. New homepage — sections to build
 
-These are the **official links** (from current customer site footer/menu):
+Order matches the redesign `src/routes/index.tsx`:
 
-| Product | Existing route (do not change) |
-|---------|-------------------------------|
+| # | Section | Links to buy flow? | Backend needed? |
+|---|---------|-------------------|-----------------|
+| 1 | Hero carousel | CTA → prequote or scroll | No |
+| 2 | Category tiles (health, motor, etc.) | Yes → prequote URLs | No |
+| 3 | Partner / insurer logo strip | No | No (static assets) |
+| 4 | Dr. Ombrella (cover finder) | Yes → prequote URLs | **Yes** — see Section 6 |
+| 5 | Popular plans strip | Yes → prequote URLs | Optional — static or DB |
+| 6 | Ombrella Advantage | No | No |
+| 7 | Why Ombrella | No | No |
+| 8 | Risk Score CTA band | → `/risk-score` | No |
+| 9 | Testimonials | No | No |
+| 10 | Why buy here (comparison table) | No | No |
+| 11 | FAQ accordion | No | No |
+| 12 | CTA band | Scroll / prequote | No |
+| 13 | Sticky mobile “Find cover” bar | Scroll to Dr. Ombrella | No |
+
+**Responsive:** Each section needs SCSS for mobile, tablet, desktop (customer site already uses `.mobile` / `.laptop` patterns in places — we follow the same or use CSS media queries).
+
+---
+
+## 4. Route mapping — every click goes to existing flows
+
+Use the **same URLs** already in `C:\Ombrela\customer\component\layout\website-layout\footer.js` and `component/home/insurance-menu.js`:
+
+| User action | Route (unchanged) |
+|-------------|-------------------|
 | Health Insurance | `/v2/health-insurance/prequotes` |
 | Motor Insurance | `/v2/motor/prequotes` |
 | Term Life | `/v2/life-insurance/prequotes` |
 | Education | `/v2/education/prequotes` |
 | Savings | `/v2/savings-insurance/prequotes` |
 | Travel | `/travel-insurance/prequotes` |
-| Gadget / Mobile | `/gadget` |
+| Gadget | `/gadget` |
 | About | `/about-us` |
-| Contact / Claims | `/contact-us` |
+| Contact | `/contact-us` |
 | Blog | `/blog` |
-| Terms | `/terms-and-conditions` |
-| Privacy | `/privacy-policies` |
 | Login | `/login` |
 | Sign up | `/sign-up` |
-| **Risk Score (new page)** | `/risk-score` → result CTAs use prequote URLs above |
+| Risk Score page | `/risk-score` **(new page)** |
 
-**Acceptance criteria:** Every CTA on the new homepage uses this table. Zero new checkout paths.
+**Rule:** No new checkout or payment URLs. Only `/` and `/risk-score` are new/changed pages.
 
 ---
 
-## 4b. Risk Score — included in scope
+## 5. Files we touch in customer repo
 
-The redesign has a **Risk Score** feature. It **is part of this project** and still **does not change buy flows**.
-
-### What the user sees
-
-| Piece | Where | What it does |
-|-------|--------|--------------|
-| **Risk Score CTA** | Homepage (blue band + animated gauge) | Teaser: “Check my risk score — free, 60 seconds” → links to `/risk-score` |
-| **Risk Score page** | `/risk-score` (new page in customer repo) | 8 tap-only questions → name + phone → score 0–100 + personalised gap report |
-| **Result actions** | End of quiz | “Close the gap” buttons → **existing prequote routes** (health, life, motor, etc.) |
-| **Download report** | Result screen | HTML report download (client-generated, like redesign prototype) |
-
-### How it works (simple)
+### Create or replace
 
 ```
-Homepage CTA → /risk-score
-    ↓
-User taps through 8 questions (age, dependents, income, assets, etc.)
-    ↓
-Enters name + Nigerian phone (validation only in v1)
-    ↓
-Score calculated in the browser (rules in code — same logic as redesign)
-    ↓
-Shows: score, risk band, missing covers, suggested next steps
-    ↓
-"Get health cover" / "Get life cover" → /v2/.../prequotes (unchanged)
+component/home/v2/
+  HeroCarousel.js
+  HeroCategories.js
+  PartnerMarquee.js
+  CoverFinder.js          ← Dr. Ombrella (needs API)
+  PopularPlans.js
+  OmbrellaAdvantage.js
+  WhyOmbrella.js
+  RiskScoreCTA.js
+  Testimonials.js
+  WhyBuyHere.js
+  FaqSection.js
+  CtaBand.js
+
+component/layout/website-layout/
+  header.js               ← revamp (keep auth logic)
+  footer.js               ← revamp (keep same links)
+
+pages/
+  index.js                ← compose v2 sections; keep getServerSideProps if still needed
+  risk-score.js           ← new
+
+utils/
+  risk-score.js           ← port quiz logic from redesign
+
+styles/
+  homepage-v2.scss          ← new styles
+
+pages/api/homepage/
+  cover-finder.js           ← Dr. Ombrella server endpoint (prod)
 ```
 
-### Backend needed?
-
-| Version | Backend | Notes |
-|---------|---------|-------|
-| **v1 (Phase 1)** | **None required** | Quiz + score + report run in frontend; no DB write |
-| **v2 (optional later)** | Save lead when phone submitted | POST to User Service or Insurance Service for CRM/follow-up — **separate decision**, not blocking homepage launch |
-
-**Important:** Risk Score **does not** replace Dr. Ombrella. They do different jobs:
-
-| | Risk Score | Dr. Ombrella |
-|--|------------|--------------|
-| Input | Fixed 8 questions | Free-text life situation |
-| Output | One score + gap list | 2–3 recommended plans |
-| Data | Rules in code (v1) | Plans from **DB catalogue** (Phase 2) |
-| Goal | “How protected am I?” | “What should I buy for my situation?” |
-
-### Customer repo files (reference from redesign)
-
-| Redesign file | Port to customer repo |
-|---------------|----------------------|
-| `src/components/home/RiskScoreCTA.tsx` | `component/home/v2/RiskScoreCTA.js` |
-| `src/routes/risk-score.tsx` | `pages/risk-score.js` |
-| `src/lib/risk-score.ts` | `utils/risk-score.js` (questions, scoring, report HTML) |
-
-### QA checklist (Risk Score)
-
-- [ ] Homepage CTA opens `/risk-score`
-- [ ] All 8 questions work on mobile (tap only)
-- [ ] Score displays after phone step
-- [ ] Each “close the gap” CTA opens correct prequote URL
-- [ ] Download report works
-- [ ] Does not break chatbot or header/footer
-
----
-
-## 5. Dr. Ombrella — real data (not mock)
-
-### What PM should know
-
-Today the redesign prototype uses a **fake JSON file** (`bundle-catalog.ts`). For production you want **real plans stored in your database**, managed by Ombrella (not hard-coded in frontend).
-
-### Recommended approach (3 layers)
+### Do not touch
 
 ```
-User prompt
-    ↓
-AI picks plan IDs (Gemini / existing chatbot stack)
-    ↓
-Plan details loaded from YOUR DB/API  ← real insurers, names, guide prices
-    ↓
-"View plans" → existing prequote route
+pages/v2/**
+pages/gadget/**
+pages/travel-insurance/**
+services/**
+component/v2/**          ← buy flow UI
+pages/api/webchat/**     ← chatbot proxy (keep)
+component/ChatWidget.js
+component/layout/website-layout/website-layout.js  ← keep ChatWidget here
 ```
 
-### Backend work needed (Insurance Service team)
+---
 
-Add a **small, homepage-only API** — does **not** touch buy-flow APIs.
+## 6. Backend work — per feature (what each team builds)
 
-| Item | Description |
-|------|-------------|
-| **DB table** e.g. `homepage_plan_catalog` | Curated plans for Dr. Ombrella: `id`, `category`, `insurer`, `name`, `covers`, `monthly_from`, `tags[]`, `prequote_url`, `active`, `sort_order` |
-| **GET** `/api/v1/homepage/plan-catalog` | Returns active plans for AI + UI |
+### 6.1 Header / footer / static homepage sections
 
+| Backend | Required? |
+|---------|-----------|
+| Insurance Service | **No** |
+| User Service | **No** (header already uses cookies/token for logged-in user — keep existing code) |
 
-**Why DB and not live quote API?**  
-Live quotes need a **lead** and user answers. Dr. Ombrella is a **discovery** tool on the homepage — it should show **real product names and starting prices** you’ve approved, then hand off to prequote for exact premium.
-
-### AI layer options
-
-| Option | Tool | Notes |
-|--------|------|-------|
-| **A (fastest)** | Lovable AI Gateway / Gemini | Same logic as redesign; swap static file for API fetch |
-| **B (align with chatbot)** | Existing `CHATBOT_API_BASE` | New “bundle recommender” agent with strict JSON output |
-| **C (fallback always on)** | Keyword match on `tags` | Works if AI is down; uses same DB catalogue |
-
-**Safety rules (non-negotiable):**
-
-- AI may **only** return IDs that exist in `homepage_plan_catalog`
-- Prices shown come **from DB**, never invented by AI
-- Max 2–3 plans, max one plan per category
-
-### Customer repo implementation
-
-- New Next.js API route: `pages/api/homepage/cover-finder.js`
-  - Loads catalogue from Insurance Service
-  - Calls AI (or keyword fallback)
-  - Returns `{ readback, plans[], note }`
-- New component: `component/home/dr-ombrella/CoverFinder.js`
-- Env vars: `LOVABLE_API_KEY` or reuse chatbot keys — **server-side only**
+Optional: homepage already calls `HOME_PAGE_CATEGORIES` in `pages/index.js` (`GET .../home/blog/categories/home`). We can **keep** or **drop** that call if the new homepage does not use dynamic categories. PM decision.
 
 ---
 
-## 6. Delivery phases (for PM timeline)
+### 6.2 Risk Score (`/risk-score`)
 
-### Phase 0 — Prep (2–3 days)
+**What it does:** 8 tap questions → name + phone → score 0–100 → gap report → buttons link to prequote URLs. Can download HTML report.
 
-- [ ] Design sign-off on homepage, header, footer (from redesign reference)
-- [ ] Confirm route mapping table (Section 4)
-- [ ] Confirm Dr. Ombrella plan list with business (which insurers/plans appear)
-- [ ] Create QA test checklist
+| Layer | Work |
+|-------|------|
+| **Frontend (customer)** | Port `src/lib/risk-score.ts` → `utils/risk-score.js`; build `pages/risk-score.js` + homepage `RiskScoreCTA.js` |
+| **Insurance Service** | **Not required for first release** — scoring runs in browser |
+| **User Service** | **Not required for first release** |
 
-**Owners:** PM + Design  
-**Risk to others:** None
+**Optional later (if PM wants leads saved):**
 
----
+| API | Purpose |
+|-----|---------|
+| New POST on User Service or Insurance Service | Save `{ name, phone, score, answers }` for sales follow-up |
 
-### Phase 1 — New shell without Dr. Ombrella DB (1–2 weeks)
-
-**What ships:** New header, footer, homepage sections, **Risk Score page**; all links to old prequotes; chatbot unchanged.
-
-| Task | Team |
-|------|------|
-| Rebuild header/footer in customer repo (SCSS + React, match redesign visually) | Frontend |
-| Rebuild homepage sections as `component/home/v2/*` (incl. **RiskScoreCTA**) | Frontend |
-| Add **`pages/risk-score.js`** + `utils/risk-score.js` (port from redesign) | Frontend |
-| Replace `pages/index.js` content; keep `getServerSideProps` for categories if needed | Frontend |
-| Keep `WebsiteLayoutComponent` + `ChatWidget` | Frontend |
-| Visual QA mobile + desktop + full risk-score quiz | QA |
-
-**Owners:** Frontend  
-**Risk to others:** Low — isolated to `/` and layout  
-**Rollback:** Restore `pages/index.old.js`
+This is **separate** from buy flows. Does not block homepage launch.
 
 ---
 
-### Phase 2 — Dr. Ombrella with real DB data (1–2 weeks, parallel with backend)
+### 6.3 Dr. Ombrella (homepage cover finder)
 
-**What ships:** Prompt box on homepage; plans from Insurance Service DB; AI recommendations.
+**What it does:** User describes their situation → app shows 2–3 recommended plans with guide prices → user clicks through to prequote.
 
-| Task | Team |
-|------|------|
-| DB table + GET catalog API | Backend (Insurance Service) |
-| Seed catalogue with approved plans | PM + Ops |
-| Next.js API route + CoverFinder component | Frontend |
-| AI integration + keyword fallback | Frontend + Backend review |
-| Link each plan to correct `prequote_url` | PM verify |
+The redesign prototype used a **local JSON file** for plans. For production you want **real plan data in your database**.
 
-**Owners:** Backend + Frontend  
-**Risk to others:** None if new endpoints only  
-**Depends on:** Phase 1 homepage live or on same branch behind feature flag
+#### Backend — Insurance Service (new, homepage-only)
 
----
+| Item | Detail |
+|------|--------|
+| **Table** e.g. `homepage_plan_catalog` | Fields: `id`, `category`, `insurer`, `plan_name`, `covers_text`, `monthly_from`, `tags` (JSON array), `prequote_url`, `is_active`, `sort_order` |
+| **GET** `/api/v1/homepage/plan-catalog` | Returns all active plans for UI + AI |
+| **Admin / seed** | SQL seed or internal tool to load real insurers/plans PM approves |
 
-### Phase 3 — QA & release (3–5 days)
+This API is **read-only** and **does not** replace existing plan search on leads (`/lead/{id}/health/plans`, etc.).
 
-- [ ] Regression: each product prequote opens correctly from homepage
-- [ ] Logged-in user: header account menu still works
-- [ ] Chatbot opens and responds on homepage
-- [ ] Dr. Ombrella: 10 sample prompts return sensible plans from DB
-- [ ] Risk Score: complete quiz on mobile + desktop; prequote links from result page work
-- [ ] Analytics events fire (homepage CTA clicks, risk score completions)
-- [ ] Deploy QA → staging → production
+#### Backend — Customer site (Next.js API route)
 
-**Owners:** QA + PM  
-**Release:** Customer repo only (`C:\Ombrela\customer`)
+| Item | Detail |
+|------|--------|
+| **`pages/api/homepage/cover-finder.js`** | Server-side only: (1) fetch catalog from Insurance Service, (2) run recommender, (3) return JSON to frontend |
+| **Env vars (production)** | e.g. `AI_API_KEY`, `AI_API_URL` — stored in server env, never in browser |
 
----
+#### AI recommender — production options (pick one)
 
-## 7. Tech stack (customer repo — no new framework)
+| Option | How it works | Backend owner |
+|--------|--------------|---------------|
+| **A. Extend existing chatbot API** | Add a “bundle recommend” endpoint on `CHATBOT_API_BASE`; strict JSON: plan IDs only | Chatbot / platform team |
+| **B. Direct LLM call from Next API route** | Gemini or OpenAI from `cover-finder.js`; prompt includes catalog IDs only | Customer frontend + DevOps for keys |
+| **C. No AI (keyword only)** | Match user text to `tags` in DB — same as redesign fallback | Insurance Service catalog only |
 
-We **do not** migrate the site to TanStack Start. We **reuse** customer stack:
+**Production safety rules:**
 
-| Layer | Technology |
-|-------|------------|
-| Framework | Next.js 12 (Pages router) |
-| UI | React 17, MUI, Bootstrap, SCSS |
-| HTTP | axios + existing `services/*` |
-| Layout | `component/layout/website-layout/` |
-| New homepage | New SCSS module + React components under `component/home/v2/` |
-| Dr. Ombrella API | `pages/api/homepage/cover-finder.js` |
-| Chatbot | Existing `ChatWidget` + `pages/api/webchat/[...path].js` |
+- AI returns **only IDs** that exist in `homepage_plan_catalog`
+- **Prices and plan names** always come from **DB response**, never from AI text
+- Max 3 plans, one per category
+- If AI fails → keyword fallback on same DB data
 
-**Design reference:** Redesign repo for pixels, copy, section order — reimplemented in SCSS/React to match customer patterns.
+#### Frontend — customer repo
+
+| Item | Detail |
+|------|--------|
+| `CoverFinder.js` | Calls `/api/homepage/cover-finder`; renders results; links use `prequote_url` from DB |
 
 ---
 
-## 8. Team responsibilities
+### 6.4 Chatbot (corner widget)
 
-| Team | Delivers |
-|------|----------|
-| **Product** | Sign-off, plan catalogue content, route mapping, UAT |
-| **Design** | Final header/footer/homepage specs, mobile states |
-| **Frontend (customer repo)** | Header, footer, homepage, Dr. Ombrella UI, API route |
-| **Backend (Insurance Service)** | `homepage_plan_catalog` table + GET API |
-| **QA** | Homepage + smoke test all prequotes + chatbot |
-| **DevOps** | QA/staging/prod deploy customer repo |
+| Backend | Required? |
+|---------|-----------|
+| **No new work** | Already uses `CHATBOT_API_BASE` + `pages/api/webchat/[...path].js` |
 
-**Not needed:** Changes to payment service, user service, or v2 buy-flow pages.
+Only check: new homepage CSS does not hide the widget (z-index).
 
 ---
 
-## 9. Success metrics (PM)
+### 6.5 Popular plans strip (optional backend)
 
-| Metric | Target |
-|--------|--------|
-| Buy flow completion rate | No drop vs baseline (± noise) |
-| Homepage bounce rate | Improve vs old homepage |
-| CTA click-through to prequote | Increase |
-| Dr. Ombrella usage | Track prompts submitted + clicks to prequote |
-| Risk Score completions | Track starts, finishes, downloads, clicks to prequote |
-| Chatbot usage | Stable (not reduced) |
-| P0 bugs on buy flows | Zero |
+| Approach | Backend |
+|----------|---------|
+| **Static in frontend** | None — hard-code cards like redesign |
+| **From same catalog as Dr. Ombrella** | Reuse `GET /api/v1/homepage/plan-catalog` with a `featured` flag |
 
 ---
 
-## 10. Open decisions for PM (please confirm)
+## 7. Step-by-step execution order
 
-1. **Header/footer globally or homepage only?**  
-   - *Recommendation:* Apply new header/footer **site-wide** for consistent brand; still only **content** change on buy flows is zero.
+Do these in order. Each step can be tested without breaking buy flows.
 
-2. **Dr. Ombrella v1 — AI required or keyword-only OK?**  
-   - *Recommendation:* Ship with keyword fallback day 1; enable AI when key/API stable.
+### Step 1 — Backup and branch
 
-3. **Who maintains plan catalogue in DB?**  
-   - *Recommendation:* Ops/Marketing monthly; engineering provides seed script.
+- Copy `pages/index.js` → `pages/index.backup.js`
+- Work on a git branch in `C:\Ombrela\customer`
 
-4. **Feature flag?**  
-   - *Recommendation:* `NEXT_PUBLIC_NEW_HOMEPAGE=true` for QA/staged rollout.
+### Step 2 — Header and footer revamp
 
-5. **Risk Score — save phone/leads to CRM in v1?**  
-   - *Recommendation:* Ship **v1 without backend** (quiz + report only). Add lead capture in v2 if PM wants sales follow-up.
+- Update `header.js` / `footer.js` (visual + responsive SCSS)
+- **Keep:** token/cookie login logic, drawer, phone number, same nav links
+- **Keep:** `WebsiteLayoutComponent` wrapping pages with `ChatWidget`
+- Test: login, logout, open any prequote from footer
+
+### Step 3 — Homepage static sections (no Dr. Ombrella yet)
+
+- Add `component/home/v2/*` for hero, categories, partners, advantage, FAQ, etc.
+- Replace body of `pages/index.js` to render these components
+- Point all category CTAs to Section 4 URLs
+- Add responsive SCSS; test mobile + desktop
+- Test: every tile opens correct prequote; chatbot still visible
+
+### Step 4 — Risk Score
+
+- Add `utils/risk-score.js`, `pages/risk-score.js`, `RiskScoreCTA.js` on homepage
+- Result page CTAs → prequote URLs from Section 4
+- Test full quiz on phone
+
+### Step 5 — Backend: plan catalog (Insurance Service)
+
+- Create table + GET API + seed data (PM provides plan list)
+- Test API in Postman
+
+### Step 6 — Dr. Ombrella
+
+- Add `pages/api/homepage/cover-finder.js`
+- Connect to catalog API + AI or keyword recommender
+- Add `CoverFinder.js` on homepage
+- Test with/without AI; verify links go to prequote URLs
+
+### Step 7 — QA smoke test
+
+- [ ] Homepage responsive (320px, 768px, 1280px)
+- [ ] Each product link → correct prequote page loads
+- [ ] Complete one health prequote flow end-to-end (unchanged behaviour)
+- [ ] Chatbot opens and replies
+- [ ] Risk score completes; prequote links work
+- [ ] Dr. Ombrella returns plans from DB
+- [ ] Logged-in user header still works
+
+### Step 8 — Deploy customer repo to QA → production
+
+Deploy **only** `C:\Ombrela\customer`. Redesign folder is not deployed separately.
 
 ---
 
-## 11. What happens next (engineering)
+## 8. What “responsive” means in practice
 
-After PM approves this plan:
+- Mobile-first SCSS breakpoints (or reuse customer `.mobile` / `.laptop` split where team already does that)
+- Touch targets ≥ 44px on CTAs
+- Hero and category grid: 1 col mobile → 2–3 tablet → 6 desktop (match redesign behaviour)
+- Sticky bottom bar on mobile (Find cover)
+- Header: hamburger drawer on small screens (keep existing drawer pattern or match new design)
 
-1. **Phase 1 coding** in `C:\Ombrela\customer`:
-   - `component/home/v2/*` — homepage sections (incl. Risk Score CTA)
-   - `pages/risk-score.js` + `utils/risk-score.js` — full quiz + report
-   - `component/layout/website-layout/header-v2.js` (or refactor header)
-   - `component/layout/website-layout/footer-v2.js`
-   - Update `pages/index.js`
-   - Preserve chatbot in layout
-
-2. **Phase 2 coding** (when backend API ready):
-   - Insurance Service: catalog endpoint
-   - Customer: `pages/api/homepage/cover-finder.js` + Dr. Ombrella component
-
-3. **No work** on `pages/v2/**` buy flows.
+Reference breakpoints from redesign use Tailwind (`sm:`, `lg:`) — **translate** to SCSS, do not add Tailwind to customer repo unless team decides otherwise.
 
 ---
 
-## 12. One-page summary for leadership
+## 9. Environment variables (production customer site)
 
-> We replace the Ombrella homepage look-and-feel (header, footer, hero, categories, **Risk Score**, Dr. Ombrella). Users get a free **Risk Score check** (8 questions → score + gap report) on a new `/risk-score` page; result buttons still go to **same prequote pages**. Every category click still goes to existing prequotes. The floating chatbot stays. Dr. Ombrella will show **real plans from our database**, with AI choosing the best match. Insurance purchase, payment, and login are **not modified**. Rollout is phased: new UI + Risk Score first, then Dr. Ombrella with DB, then QA and release.
+| Variable | Used for | Already exists? |
+|----------|----------|-----------------|
+| `API_BASE_URL_INSURANCE_SERVICE` | Catalog API, existing flows | Yes |
+| `API_BASE_URL_USER_SERVICE` | Auth | Yes |
+| `CHATBOT_API_BASE`, `CHATBOT_API_KEY` | Chatbot | Yes |
+| `AI_API_KEY` / `AI_API_URL` (name TBD) | Dr. Ombrella recommender | **New** — server-side only |
+
+No third-party prototype keys in production. Use your own AI provider or chatbot platform credentials.
 
 ---
 
+## 10. Summary for PM / anyone reading this
+
+1. We **revamp homepage, header, and footer** in the **customer repo**.
+2. We **port** the new UI from the redesign folder (adapt styles, not literal copy-paste).
+3. All **buy insurance flows stay untouched** — homepage only links to them.
+4. **Chatbot stays** on every page.
+5. **Risk Score** = new page, mostly frontend; no backend required to launch.
+6. **Dr. Ombrella** = needs **new DB table + API on Insurance Service** + **Next.js API route** + production AI or keyword matching.
+7. Work is **frontend-heavy** for layout; **backend is small and isolated** (catalog + optional lead capture).
+
+---
 
